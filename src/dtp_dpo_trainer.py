@@ -1,18 +1,18 @@
 """
-DTP-DPO Trainer: Diagnostic-Therapeutic Preference Direct Preference Optimization
+DTP-DPO Trainer: Diagnose-Treat-Prevent preference optimization
 
-Core loss function consists of three phases (inspired by clinical trial methodology):
+Core loss function consists of three complementary terms:
 
-1. L_treat (Phase I - Treatment): HIS-weighted DPO loss — uses Hallucination
+1. L_treat: HIS-weighted DPO loss — uses Hallucination
    Instability Score (HIS) to weight per-token DPO loss, applying stronger
    preference optimization signal on tokens with high hallucination instability.
 
-2. L_prevent (Phase II - Prevention): Visual pathway intervention
+2. L_prevent: Visual pathway intervention
    (Visual Grounding Regularization) — contrasts response probabilities under
    original vs. masked images, penalizing the model's tendency to ignore visual
    information, reducing hallucination instability at its source.
 
-3. L_stable (Phase III - Stabilization): Optimization stability constraint
+3. L_stable: Optimization stability constraint
    (Preference Anchoring Loss) — prevents preferred response probability from
    dropping during DPO training, stabilizing the optimization process.
 
@@ -23,10 +23,9 @@ Key design:
   tokens contribute more to the loss
 - labels中prompt部分设为IGNORE_INDEX(-100)，只在response tokens上计算logprobs
 
-修复记录:
-- v1: labels未mask prompt → margin≈0, l_vis=0
-- v2: 修复prompt masking，但用sum-then-sigmoid → reward信号太弱，收敛慢
-- v3(当前): 改为per-token DPO，instability作为token loss权重
+Implementation notes:
+- Prompt labels are masked with IGNORE_INDEX; only response tokens contribute.
+- DPO is computed per token and weighted by the corresponding instability signal.
 """
 
 import torch
@@ -129,7 +128,7 @@ def visual_contrastive_loss(
     beta: float = 0.1,
 ) -> torch.Tensor:
     """
-    DTP-DPO Phase II: Visual Pathway Intervention Loss (L_prevent)
+    DTP-DPO visual pathway intervention loss (L_prevent).
 
     Contrasts response probabilities under original vs. masked images,
     forcing the model to rely on visual information rather than language priors.
@@ -168,7 +167,7 @@ def standard_dpo_loss(
 
 
 def mask_pixel_values(pixel_values, mask_ratio=0.3, is_internvl=False):
-    """对pixel_values进行掩码，用于L_prevent的Phase II损失计算。
+    """对pixel_values进行掩码，用于L_prevent损失计算。
 
     Qwen2.5-VL: (num_patches, patch_dim) — patch级别masking
     InternVL2.5: (num_tiles, 3, 448, 448) — tile级别空间masking
@@ -206,9 +205,9 @@ class DTPDPOTrainer:
     DTP-DPO训练器
 
     总损失: L = L_treat + gamma1 * L_prevent + gamma2 * L_stable
-    - Phase I  (L_treat):   HIS-weighted DPO for targeted hallucination correction
-    - Phase II (L_prevent): Visual pathway intervention to reduce instability at source
-    - Phase III(L_stable):  Optimization stability constraint
+    - L_treat:   HIS-weighted DPO for targeted hallucination correction
+    - L_prevent: visual pathway intervention to reduce instability at source
+    - L_stable:  optimization stability constraint
     """
 
     def __init__(self, model, ref_model, tokenizer, processor, args):

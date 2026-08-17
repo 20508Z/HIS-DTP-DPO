@@ -1,91 +1,88 @@
-# Anonymous Artifact for HIS-Guard
+# HIS-Guard: Internal Stability Signals for Vision-Language Models
 
-This anonymous artifact contains source code for the submitted paper on internal stability signals for selective verification and hallucination mitigation in vision-language models.
+Official implementation of **Internal Stability Signals for Selective Verification and Hallucination Mitigation in Vision-Language Models** (CIKM 2026).
 
-The package intentionally excludes run logs, checkpoints, local model copies, datasets, generated results, paper build products, and any machine-specific paths. It is intended for code review and reproduction by reviewers who prepare the required public datasets and base models.
+HIS-Guard uses internal model signals to identify unstable response tokens and combines them with a Diagnose-Treat-Prevent (DTP) preference-optimization objective. The code supports Qwen2.5-VL and InternVL2.5 model families.
 
-## Contents
+## Repository layout
 
-- `train.py`: main training entry point for HIS-guided preference optimization.
-- `src/`: dataset, trainer, stability-diagnostic, and model utility code.
-- `scripts/`: preference-data construction and lightweight launch examples.
-- `eval/`: CHAIR, POPE, MME, MMHal, and unsupported-claim ranking evaluation scripts.
-- `requirements.txt`: Python dependency list used by the implementation.
+- train.py: main HIS-guided DTP-DPO training entry point.
+- src/: data preparation, trainer, internal-stability analysis, and model utilities.
+- scripts/: preference-data construction, filtering, merging, and training/evaluation examples.
+- eval/: CHAIR, POPE, MME, MMHal, and unsupported-claim evaluation entry points.
+- paper_cikm_full/gen_cikm_figures.py: figure-prompt record used during paper preparation. The local image-generation wrapper is not redistributed and is not required for training or evaluation.
+- requirements.txt: Python dependencies.
 
-## Paper-Code Terminology
+## Method terminology
 
-The paper uses `HIS-Guard` for the overall framework, `HIS` for the internal
-instability diagnostic, and `DTP-DPO` for the training objective. Some code
-symbols preserve earlier names for compatibility: `clss` corresponds to the
-semantic convergence score, and `ctss` corresponds to visual grounding
-coherence computed from cross-token image-attention distribution consistency.
+The paper uses HIS-Guard for the framework, HIS for the internal hallucination-instability diagnostic, and DTP-DPO for the training objective. In the implementation, clss is the semantic convergence score (top-K LogitLens entropy reduction), ctss is the visual-attention consistency score (cross-token JSD), and his_sem/his_vis are the corresponding semantic/visual signals.
 
-## Required External Assets
+The DTP objective is implemented as:
 
-Reviewers should provide these assets locally:
+- L_treat: HIS-weighted per-token DPO.
+- L_prevent: visual-fidelity gating using original and masked-image response probabilities.
+- L_stable: combined-instability reward-margin anchoring.
 
-- Qwen2.5-VL or InternVL2.5 base model checkpoints.
+## Requirements
+
+The experiments were developed with Python 3.10, PyTorch 2.4.1, Transformers 4.49.0, PEFT, Accelerate, and CUDA. Install the pinned dependencies with:
+
+    pip install -r requirements.txt
+
+## External assets
+
+The repository does not redistribute model weights, datasets, generated outputs, checkpoints, or machine-specific paths. Prepare the following assets locally:
+
+- Qwen2.5-VL or InternVL2.5 base checkpoints.
 - Visual Genome images and object annotations for preference-pair construction.
-- COCO val2014 images and annotations for CHAIR and POPE evaluation.
-- POPE random, popular, and adversarial question files.
+- COCO val2014 images/annotations and POPE question files for CHAIR/POPE.
 - Optional MMHal-Bench and MME hallucination-subset data.
 
-No dataset files or model weights are included in this anonymous package.
+The example scripts assume:
 
-## Expected Directory Layout
+    artifact/
+    |- train.py
+    |- src/  scripts/  eval/
+    |- models/
+    |   |- Qwen2.5-VL-3B/
+    |   |- Qwen2.5-VL-7B/
+    |   - InternVL2_5-2B/
+    |- data/
+    |   |- visual_genome/  coco/  POPE/
+    |- checkpoints/
+    - outputs/
 
-The scripts assume a layout like:
+## Preference data
 
-```text
-artifact/
-├── train.py
-├── src/
-├── scripts/
-├── eval/
-├── models/
-│   ├── Qwen2.5-VL-3B/
-│   ├── Qwen2.5-VL-7B/
-│   └── InternVL2_5-2B/
-├── data/
-│   ├── visual_genome/
-│   ├── coco/
-│   └── POPE/
-├── checkpoints/
-└── outputs/
-```
+Run:
 
-`models/`, `data/`, `checkpoints/`, and `outputs/` are local runtime directories and are not part of the submission artifact.
+    bash scripts/run_build_data_example.sh
 
-## Example Workflow
+Visual Genome object labels are used to construct supported/unsupported preference pairs. Token-level localization and weighting are computed by the internal HIS implementation; no external token-level hallucination mask is passed to the optimizer. The reported build produced 4,959 pairs; the exact count can vary with filtering, available annotations, and preprocessing versions.
 
-Build preference data:
+## Training examples
 
-```bash
-bash scripts/run_build_data_example.sh
-```
+The launchers are templates; update paths and batch settings for the available hardware.
 
-Train HIS-Guard on Qwen2.5-VL-3B:
+    bash scripts/run_train_qwen3b_example.sh
+    bash scripts/run_train_qwen7b_example.sh
+    bash scripts/run_train_internvl2b_example.sh
 
-```bash
-bash scripts/run_train_qwen3b_example.sh
-```
+The defaults correspond to the main settings used in the paper: learning rate 1e-6, DPO beta=0.1, LoRA rank/alpha 64/128, visual weight gamma_visual=0.2, anchor weight gamma_anchor=0.1, and mask ratio 0.3. The Qwen examples use three epochs; the InternVL2.5-2B example uses one epoch.
 
-Evaluate POPE and CHAIR:
+## Evaluation
 
-```bash
-bash scripts/run_eval_example.sh models/Qwen2.5-VL-3B checkpoints/his_guard_qwen3b/epoch_3 outputs/qwen3b
-```
+For the standard CHAIR/POPE workflow:
 
-The examples are templates. Paths may be changed to match the reviewer's local storage.
+    bash scripts/run_eval_example.sh models/Qwen2.5-VL-3B checkpoints/his_guard_qwen3b/epoch_3 outputs/qwen3b
 
-## Reproducibility Scope
+Additional entry points in eval/ cover MME, MMHal, and unsupported-claim ranking. Their dataset paths must be configured for the local environment.
 
-This package is intended to reproduce the method implementation and evaluation
-pipeline once reviewers provide the external datasets and base checkpoints.
-It does not include experiment logs, generated result files, or trained LoRA
-checkpoints. The main experiments in the paper used Python 3.10, PyTorch 2.4.1,
-Transformers 4.49.0, PEFT/Accelerate, and 4 RTX 4090 GPUs.
+## Reproducibility scope
 
-## Anonymity Notes
+This repository contains the method implementation and evaluation pipeline. It intentionally excludes training logs, generated result files, trained LoRA checkpoints, model weights, and datasets, so the exact numerical results in the paper are not claimed to be reproduced by a checkout alone. Results depend on the externally supplied assets, hardware, and preprocessing versions.
 
-This artifact is anonymized for double-blind review. It excludes identity metadata, personal accounts, local absolute paths, previous run outputs, logs, checkpoints, and generated result files.
+## License
+
+This project is released under the Apache License 2.0. See LICENSE.
+

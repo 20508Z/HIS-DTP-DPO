@@ -1,13 +1,13 @@
 """
 train.py: DTP-DPO主训练脚本
-使用LoRA微调，支持Qwen2.5-VL-3B和InternVL2.5-2B
+使用LoRA微调，支持Qwen2.5-VL-3B/7B和InternVL2.5-2B
 支持多GPU训练 (accelerate / torchrun)
 
 超参数:
 - beta=0.1, lr=1e-6: DPO标准超参
-- LoRA rank=64, alpha=128: 适配3B模型的LoRA配置
+- LoRA rank=64, alpha=128: 论文实验使用的LoRA配置
 - gamma_visual=0.2: 视觉锚定正则化权重
-- gamma_anchor=1.0: 偏好锚定损失权重
+- gamma_anchor=0.1: 偏好锚定损失权重
 - mask_ratio=0.3: 图像掩码比例
 """
 

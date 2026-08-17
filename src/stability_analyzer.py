@@ -1,10 +1,10 @@
 """
-Stability Analyzer: DTP-DPO Phase I diagnostic module
+Stability Analyzer: internal stability diagnostic module for HIS-Guard
 用于自动定位模型生成中不稳定（易幻觉）的token
 
 核心指标：
-1. CLSS (Cross-Layer Stability Score): 跨层稳定性，基于相邻层logit分布的JSD
-2. CTSS (Cross-Token Stability Score): 跨token稳定性，基于相邻token视觉注意力的JSD
+1. CLSS: semantic convergence from top-K LogitLens entropy reduction across layers
+2. CTSS: visual-attention consistency from cross-token Jensen-Shannon divergence
 """
 
 import torch
@@ -69,7 +69,7 @@ def compute_ctss(attentions: Tuple[torch.Tensor, ...],
                  num_visual_tokens: int,
                  layer_idx: int = -1) -> torch.Tensor:
     """
-    Cross-Token Stability Score (CTSS) - Phase I diagnostic: cross-token visual attention consistency
+    Cross-Token Stability Score (CTSS): cross-token visual-attention consistency.
 
     相邻token应关注相似的视觉区域，如果视觉注意力焦点突然分散，
     说明模型对当前token的视觉依据不稳定。
@@ -123,7 +123,7 @@ def compute_stability_scores(
     alpha: float = 0.5,
 ) -> Dict[str, torch.Tensor]:
     """
-    Phase I diagnostic: compute per-token HIS and its semantic/visual components.
+    Compute per-token HIS and its semantic/visual components.
 
     Returns:
         dict with keys:

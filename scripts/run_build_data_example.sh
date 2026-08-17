@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Example preference-data construction script.
-# Reviewers should adjust annotation and image paths to their local dataset layout.
+# Adjust annotation and image paths to the local dataset layout.
 
 MODEL_PATH=${MODEL_PATH:-models/Qwen2.5-VL-3B}
 VG_OBJECTS=${VG_OBJECTS:-data/visual_genome/objects.json}

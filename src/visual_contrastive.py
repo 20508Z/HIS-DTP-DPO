@@ -1,7 +1,7 @@
 """
 Visual Contrastive: 图像扰动模块
 - add_diffusion_noise: 扩散噪声（用于VCD推理增强）
-- mask_single_image: 图像掩码（用于DTP-DPO Phase III视觉通路干预）
+- mask_single_image: 图像掩码（用于DTP-DPO的视觉通路干预）
 """
 
 import copy
@@ -32,7 +32,7 @@ def add_diffusion_noise(image_tensor: torch.Tensor, noise_step: int) -> torch.Te
 def mask_single_image(base_image: torch.Tensor, mask_percentage: float,
                       mask_method: str = 'random') -> torch.Tensor:
     """
-    图像掩码函数，用于DTP-DPO Phase III视觉通路干预（L_prevent）。
+    图像掩码函数，用于DTP-DPO视觉通路干预（L_prevent）。
     随机遮蔽指定比例的像素区域，替换为均值。
     """
     image = copy.deepcopy(base_image)
